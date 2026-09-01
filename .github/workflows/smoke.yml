@@ -1,0 +1,55 @@
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        working-directory: douhuo_picker
+        run: |
+          python -m pip install -U pip
+          pip install openpyxl playwright
+          playwright install --with-deps chromium
+
+      - name: Build dummy workbook with headers only
+        working-directory: douhuo_picker
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from openpyxl import Workbook
+          from openpyxl.styles import Font
+          wb = Workbook()
+          ws = wb.active
+          ws.title = "选品清单"
+          ws.append(["品类", "品牌", "规格", "备注"])
+          for cat in ("铅笔", "作业本", "橡皮擦"):
+              ws.append([cat, "", "", ""])
+          wb.save("../examples/template.xlsx")
+          print("wrote examples/template.xlsx")
+          PY
+
+      - name: Dry-run task derivation
+        working-directory: douhuo_picker
+        run: |
+          python run.py --excel ../examples/template.xlsx --init --dry-run
+
+      - name: Verify CLI help
+        working-directory: douhuo_picker
+        run: python run.py --help

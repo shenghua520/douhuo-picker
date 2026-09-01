@@ -1,0 +1,78 @@
+# ============================================================
+# douhuo_picker 的 .gitignore —— 排除一切运行期产物与本地信息
+# ============================================================
+
+# ---------- Python 缓存 / 字节码 / 虚拟环境 ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.python-version
+
+# ---------- AI 助手记忆与本地工程化目录（不入仓） ----------
+.workbuddy/
+
+# ---------- 浏览器自动化产物（首次登录会生成，体积大且含 cookie） ----------
+douhuo_picker/state/
+douhuo_picker/**/browser_profile/
+douhuo_picker/**/Cache/
+douhuo_picker/**/Code Cache/
+douhuo_picker/**/GPUCache/
+douhuo_picker/**/Local Storage/
+douhuo_picker/**/Session Storage/
+douhuo_picker/**/Network/Cookies*
+
+# ---------- 日志与临时文件 ----------
+logs/
+*.log
+*.log.*
+*.tmp
+*.swp
+*.bak
+*_备份_*.xlsx
+~$*.xlsx
+
+# ---------- 构建产物（占位：当前无构建，留给后续扩展） ----------
+dist/
+build/
+out/
+*.egg-info/
+*.wheel
+
+# ---------- IDE / 编辑器 ----------
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 敏感文件（请勿提交） ----------
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.yml
+secrets.yaml
+config.local.*
+
+# ---------- 业务数据（脚本不依赖；只在本地跑批） ----------
+*.xlsx
+*.xls
+*.7z
+*.zip
+*.tar.gz
+!examples/*.xlsx
+
+# ---------- Node / 前端（占位） ----------
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
