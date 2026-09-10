@@ -20,28 +20,27 @@ jobs:
         with:
           python-version: "3.13"
           cache: "pip"
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        working-directory: douhuo_picker
         run: |
           python -m pip install -U pip
-          pip install openpyxl playwright
+          pip install -r requirements.txt
           playwright install --with-deps chromium
 
       - name: Build dummy workbook with headers only
-        working-directory: douhuo_picker
         run: |
           python - <<'PY'
           from pathlib import Path
           from openpyxl import Workbook
-          from openpyxl.styles import Font
           wb = Workbook()
           ws = wb.active
           ws.title = "选品清单"
           ws.append(["品类", "品牌", "规格", "备注"])
           for cat in ("铅笔", "作业本", "橡皮擦"):
               ws.append([cat, "", "", ""])
-          wb.save("../examples/template.xlsx")
+          Path("examples").mkdir(exist_ok=True)
+          wb.save("examples/template.xlsx")
           print("wrote examples/template.xlsx")
           PY
 
@@ -50,6 +49,10 @@ jobs:
         run: |
           python run.py --excel ../examples/template.xlsx --init --dry-run
 
-      - name: Verify CLI help
+      - name: Verify picker CLI help
         working-directory: douhuo_picker
+        run: python run.py --help
+
+      - name: Verify scraper CLI help
+        working-directory: douhuo_scraper
         run: python run.py --help
