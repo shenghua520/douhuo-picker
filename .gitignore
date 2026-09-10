@@ -76,3 +76,9 @@ node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+
+# choice-center full scrape runtime
+output/
+state/
+douhuo_scraper/logs/
+

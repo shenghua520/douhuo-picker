@@ -2,6 +2,14 @@
 
 项目所有值得注意的变更都记录在此。格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [Unreleased] · 2026-09-10
+
+### Added
+- 新增 `douhuo_scraper/`：选品中心五表全量抓取（首页轮播图/每日必看/团购爆品轮播/团购爆品全量/海量优品）。
+- 轮播图 `link_url` 跳转专区商品一并采集；Excel 双行表头（英文字段 + 中文说明）。
+- 长任务定时进度反馈（条数 / 百分比 / ETA）+ `output/progress_status.txt`。
+- 双语文档：`docs/choice-center-scrape.md`。
+
 ## [Unreleased] · 2026-09-01
 
 ### Added

@@ -148,6 +148,22 @@ usage: run.py [-h] [--excel EXCEL] [--init] [--login] [--headful] [--all]
 | 排序 | 中文或英文 | 利润率降序 / cost asc |
 | 最大条数 | 数字 | 40 |
 
+## 📦 选品中心五表全量抓取（新增）
+
+关键词选品之外，仓库新增 `douhuo_scraper/`：按首页分区全量导出 5 份 Excel（轮播图商品、每日必看、团购爆品轮播、团购爆品全量、海量优品）。
+
+```bash
+cd douhuo_scraper
+python run.py --login
+python run.py --scrape all --fresh
+```
+
+详细说明（中英双语）：[docs/choice-center-scrape.md](docs/choice-center-scrape.md)
+
+- Excel 第 1 行为英文字段键，第 2 行为中文说明。
+- 长任务定时打印进度，并写入 `output/progress_status.txt`。
+- 轮播图 `link_url` 跳转专区的商品会一并采集。
+
 ## 🗂 目录结构
 
 ```
@@ -159,14 +175,19 @@ usage: run.py [-h] [--excel EXCEL] [--init] [--login] [--headful] [--all]
 ├── .github/
 │   └── workflows/smoke.yml          # 冒烟测试：跑 --init --dry-run
 ├── docs/
-│   └── architecture.svg             # 端到端流程图
-├── douhuo_picker/                   # 核心工具
+│   ├── architecture.svg             # 端到端流程图
+│   └── choice-center-scrape.md      # 五表全量抓取说明（中英双语）
+├── douhuo_picker/                   # 关键词选品核心工具
 │   ├── client.py                    # 接口层：Playwright + 页面 fetch
 │   ├── store.py                     # Excel 读写：任务表/结果表/去重
 │   ├── run.py                       # CLI 入口
 │   ├── dedup_existing.py            # 就地校正工具
 │   ├── logs/                        # 运行日志（已 gitignore）
 │   └── state/                       # 浏览器登录态（已 gitignore）
+├── douhuo_scraper/                  # 选品中心五表全量抓取
+│   ├── client.py                    # 登录 + 页面内 fetch + 分区 API
+│   ├── excelio.py                   # 双行表头 Excel 导出
+│   └── run.py                       # CLI：--login / --scrape / --export-only
 └── examples/
     └── template.xlsx                # 脱敏后的空表头模板
 ```
