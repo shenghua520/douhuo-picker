@@ -7,12 +7,7 @@
     python run.py --excel ../询价1-学生文具选品询价清单.xlsx
     python run.py --excel .. --limit 20         # 批量跑整个目录，每个任务最多 20 条
     python run.py --excel .. --all --headful    # 重跑已完成的任务，并显示浏览器
-
-产出：在目标工作簿内新增/更新「选品任务」「选品结果」两张表，
-      并在 logs/ 下留日志，写文件前自动生成 *_备份_时间戳.xlsx。
-
-依赖安装（一次性）：
-    pip install openpyxl playwright && playwright install chromium
+    python run.py --excel ../examples/template.xlsx --init --dry-run   # CI/预览，不启浏览器
 """
 
 from __future__ import annotations
@@ -65,7 +60,7 @@ def pick_workbooks(target: Path, do_init: bool) -> list[Path]:
             wb = store.load(path)
             has_task_sheet = store.TASK_SHEET in wb.sheetnames
             wb.close()
-        except Exception:  # noqa: BLE001 - 打不开的文件直接跳过
+        except Exception:  # noqa: BLE001
             continue
         if has_task_sheet:
             kept.append(path)
@@ -118,7 +113,7 @@ def run_one(path: Path, client: DouhuoClient, log: logging.Logger,
             store.update_task(task_ws, task, store.STATUS_ERROR, 0, f"异常：{exc}")
             log.error("  任务失败：%s", exc)
             continue
-        except Exception:  # noqa: BLE001 - 单任务失败不中断整批
+        except Exception:  # noqa: BLE001
             stat["failed"] += 1
             msg = traceback.format_exc(limit=1).strip().splitlines()[-1]
             store.update_task(task_ws, task, store.STATUS_ERROR, 0, f"未预期异常：{msg}")
@@ -152,7 +147,6 @@ def run_one(path: Path, client: DouhuoClient, log: logging.Logger,
 
 
 def collect(client: DouhuoClient, task, log: logging.Logger) -> list[dict]:
-    """解析条件并调用接口抓商品。"""
     cate_id = 0
     if task.cate:
         cate_id = client.resolve_id(task.cate, client.categories(), "类目")
@@ -183,6 +177,39 @@ def collect(client: DouhuoClient, task, log: logging.Logger) -> list[dict]:
     )
 
 
+def _dry_run(target: Path, args: argparse.Namespace, log: logging.Logger) -> int:
+    """纯预览：只读 Excel，不启动浏览器。"""
+    workbooks = pick_workbooks(target, args.init)
+    if not workbooks:
+        log.error("没找到可处理的工作簿。若还没有「选品任务」表，请先加 --init")
+        return 1
+    log.info("待处理工作簿 %d 个：%s", len(workbooks),
+             ", ".join(p.name for p in workbooks))
+    for path in workbooks:
+        if args.init:
+            pairs, msg = store.plan_tasks(path)
+            log.info("%s → %s", path.name, msg)
+            if pairs:
+                log.info("    %s", _join(pairs))
+            continue
+        try:
+            wb = store.load(path)
+        except Exception as exc:  # noqa: BLE001
+            log.error("%s 打开失败：%s", path.name, exc)
+            return 1
+        if store.TASK_SHEET not in wb.sheetnames:
+            log.info("%s → 无「选品任务」表，跳过", path.name)
+            wb.close()
+            continue
+        tasks = store.read_tasks(wb[store.TASK_SHEET],
+                                 only_pending=not args.all, limit_override=args.limit)
+        log.info("%s → 待执行 %d 个任务：%s", path.name, len(tasks),
+                 _join([(t.keyword, []) for t in tasks]))
+        wb.close()
+    log.info("dry-run 完成（未启动浏览器、未写文件）")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="抖货商城自动选品（Excel 驱动）")
     parser.add_argument("--excel", default=str(ROOT),
@@ -193,7 +220,8 @@ def main() -> int:
     parser.add_argument("--all", action="store_true", help="重跑状态为「已完成」的任务")
     parser.add_argument("--limit", type=int, default=0, help="覆盖任务表的「最大条数」")
     parser.add_argument("--profile", default=str(DEFAULT_PROFILE), help="浏览器登录态目录")
-    parser.add_argument("--dry-run", action="store_true", help="只打印将要处理的任务，不抓数据")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="只打印将要处理的任务，不抓数据、不启动浏览器")
     args = parser.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
@@ -205,18 +233,21 @@ def main() -> int:
         log.error("路径不存在：%s", target)
         return 2
 
+    # dry-run：完全不碰 Playwright / 浏览器
+    if args.dry_run:
+        return _dry_run(target, args, log)
+
     Path(args.profile).mkdir(parents=True, exist_ok=True)
     client = DouhuoClient(Path(args.profile), headless=not (args.login or args.headful))
 
     try:
         client.__enter__()
-        if not args.dry_run:
-            state = client.ensure_login()
-            if state == "试用账号":
-                log.warning("当前是「试用账号」，商品与价格可能不全；"
-                            "如需完整数据请先执行一次：python run.py --login")
-            else:
-                log.info("登录态正常（%s）", state)
+        state = client.ensure_login()
+        if state == "试用账号":
+            log.warning("当前是「试用账号」，商品与价格可能不全；"
+                        "如需完整数据请先执行一次：python run.py --login")
+        else:
+            log.info("登录态正常（%s）", state)
 
         if args.login:
             log.info("登录完成，登录态已保存到 %s", args.profile)
@@ -228,23 +259,6 @@ def main() -> int:
             return 1
         log.info("待处理工作簿 %d 个：%s", len(workbooks),
                  ", ".join(p.name for p in workbooks))
-
-        if args.dry_run:
-            for path in workbooks:
-                if args.init:
-                    # 纯预览：只读清单、算派生结果，不落盘
-                    pairs, msg = store.plan_tasks(path)
-                    log.info("%s → %s", path.name, msg)
-                    if pairs:
-                        log.info("    %s", _join(pairs))
-                    continue
-                wb = store.load(path)
-                tasks = store.read_tasks(wb[store.TASK_SHEET],
-                                         only_pending=not args.all, limit_override=args.limit)
-                log.info("%s → 待执行 %d 个任务：%s", path.name, len(tasks),
-                         _join([(t.keyword, []) for t in tasks]))
-                wb.close()
-            return 0
 
         summary = [run_one(p, client, log, args.limit, not args.all, args.init)
                    for p in workbooks]
